@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_service.dart';
 import 'crud_service.dart';
+import 'login_page.dart';
 
 class HomePage extends StatelessWidget {
   final CrudService service = CrudService();
@@ -32,12 +33,36 @@ class HomePage extends StatelessWidget {
                 showFavorites = !showFavorites;
               }),
             ),
-            // Added: sign out and return to the registered login route.
+            // Added: sign out and return to the login page.
             IconButton(
               icon: Icon(Icons.logout, color: Colors.white),
               onPressed: () async {
+                final shouldLogOut = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: Text('Log out'),
+                    content: Text('Are you sure you want to log out?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: Text('Log out'),
+                      ),
+                    ],
+                  ),
+                );
+                if (shouldLogOut != true || !context.mounted) return;
+
                 await authService.signOut();
-                Navigator.pushReplacementNamed(context, '/login');
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  );
+                }
               },
             ),
           ],

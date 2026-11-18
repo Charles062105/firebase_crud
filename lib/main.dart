@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,10 +28,6 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       // Added: route signed-in users to HomePage and others to LoginPage.
-      routes: {
-        '/login': (_) => const LoginPage(),
-        '/home': (_) => HomePage(),
-      },
       home: StreamBuilder<User?>(
         stream: AuthService().userStream,
         builder: (context, snapshot) {

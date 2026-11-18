@@ -1,4 +1,5 @@
 import 'package:firebase_crud/register_page.dart';
+import 'package:firebase_crud/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
@@ -138,10 +139,28 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _showAuthMessage(String message) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Login')),
+      appBar: AppBar(
+        title: Text('Quimados Login'),
+        centerTitle: true,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16),
@@ -187,22 +206,25 @@ class _LoginPageState extends State<LoginPage> {
                     _passwordCtrl.text,
                   );
 
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   setState(() => loading = false);
 
                   if (user != null && user.emailVerified) {
                     // Login successful
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => HomePage()),
+                    );
                   } else if (user != null) {
                     await authService.signOut();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please verify your email before logging in.')),
+                    if (context.mounted) {
+                      await _showAuthMessage(
+                        'Please verify your email before logging in.',
                       );
                     }
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Login failed. Check your email and password.')),
+                    await _showAuthMessage(
+                      'Login failed. Check your email and password.',
                     );
                   }
                 },
@@ -229,11 +251,14 @@ class _LoginPageState extends State<LoginPage> {
                 onPressed: () async {
                   setState(() => loading = true);
                   final user = await authService.signInWithGoogle();
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   setState(() => loading = false);
                   if (user != null) {
                     // Login successful
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => HomePage()),
+                    );
                   } 
                 },
               ),

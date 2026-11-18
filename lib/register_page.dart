@@ -15,6 +15,21 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  Future<void> _showAuthMessage(String message) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,29 +74,26 @@ class _RegisterPageState extends State<RegisterPage> {
                     _passwordController.text,
                   );
 
+                  if (!context.mounted) return;
                   setState(() => _isLoading = false);
 
                   if (user != null) {
                     // Registration successful
                     if (!user.emailVerified) {
                       await user.sendEmailVerification();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Verification email sent. Please check your inbox.',
-                          ),
-                        ),
+                      if (!context.mounted) return;
+                      await _showAuthMessage(
+                        'Verification email sent. Please check your inbox.',
                       );
                     }
 
+                    if (!context.mounted) return;
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => LoginPage()),
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Registration failed.')),
-                    );
+                    await _showAuthMessage('Registration failed.');
                   }
                 },
               ),

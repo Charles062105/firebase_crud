@@ -34,7 +34,7 @@ class AuthService {
       );
       return userCredential.user;
     } catch (error) {
-      print('Error: $error');
+      debugPrint('Error: $error');
       return null;
     }
   }
@@ -47,14 +47,14 @@ class AuthService {
       );
       return userCredential.user;
     } catch (error) {
-      print('Error: $error');
+      debugPrint('Error: $error');
       return null;
     }
   }
 
   // Added for the Forgot Password flow.
   Future<void> sendPasswordResetEmail(String email) {
-    return _auth.sendPasswordResetEmail(email: email);
+    return _auth.sendPasswordResetEmail(email: email.trim());
   }
 
   // Sign out
