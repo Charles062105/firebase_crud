@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'auth_service.dart';
 import 'crud_service.dart';
 
 class HomePage extends StatelessWidget {
   final CrudService service = CrudService();
+  final AuthService authService = AuthService();
   final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController qtyCtrl = TextEditingController();
 
@@ -30,6 +31,14 @@ class HomePage extends StatelessWidget {
               onPressed: () => setState(() {
                 showFavorites = !showFavorites;
               }),
+            ),
+            // Added: sign out and return to the registered login route.
+            IconButton(
+              icon: Icon(Icons.logout, color: Colors.white),
+              onPressed: () async {
+                await authService.signOut();
+                Navigator.pushReplacementNamed(context, '/login');
+              },
             ),
           ],
         ),
