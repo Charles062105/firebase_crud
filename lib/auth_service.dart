@@ -29,13 +29,13 @@ class AuthService {
   Future<User?> registerWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
       return userCredential.user;
     } catch (error) {
       debugPrint('Error: $error');
-      return null;
+      rethrow;
     }
   }
 
