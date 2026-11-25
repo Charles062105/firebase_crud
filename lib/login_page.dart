@@ -197,14 +197,50 @@ class _LoginPageState extends State<LoginPage> {
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text('Login'),
                 onPressed: () async {
-                  if (_emailCtrl.text.isEmpty || _passwordCtrl.text.isEmpty) return;
+                  if (_emailCtrl.text.trim().isEmpty ||
+                      _passwordCtrl.text.isEmpty) {
+                    await _showAuthMessage('Enter your email and password.');
+                    return;
+                  }
 
                   setState(() => loading = true);
-
-                  final user = await authService.signInWithEmail(
-                    _emailCtrl.text,
-                    _passwordCtrl.text,
-                  );
+                  User? user;
+                  try {
+                    user = await authService.signInWithEmail(
+                      _emailCtrl.text,
+                      _passwordCtrl.text,
+                    );
+                  } on FirebaseAuthException catch (error) {
+                    if (!context.mounted) return;
+                    setState(() => loading = false);
+                    var message = error.message ??
+                        'Login failed (${error.code}). Please try again.';
+                    if (error.code == 'invalid-credential' ||
+                        error.code == 'wrong-password' ||
+                        error.code == 'user-not-found') {
+                      message =
+                          'Email or password is incorrect. Check that this account uses Email/Password sign-in.';
+                    } else if (error.code == 'network-request-failed') {
+                      message =
+                          'Network error. Check your connection and try again.';
+                    } else if (error.code == 'too-many-requests') {
+                      message =
+                          'Too many attempts. Please wait and try again.';
+                    } else if (error.code == 'operation-not-allowed') {
+                      message =
+                          'Email/Password sign-in is not enabled in Firebase Console.';
+                    }
+                    await _showAuthMessage(message);
+                    return;
+                  } catch (error) {
+                    debugPrint('Login error: $error');
+                    if (!context.mounted) return;
+                    setState(() => loading = false);
+                    await _showAuthMessage(
+                      'Unable to log in. Check your connection and try again.',
+                    );
+                    return;
+                  }
 
                   if (!context.mounted) return;
                   setState(() => loading = false);
@@ -224,7 +260,7 @@ class _LoginPageState extends State<LoginPage> {
                     }
                   } else {
                     await _showAuthMessage(
-                      'Login failed. Check your email and password.',
+                      'Login failed. Firebase did not return a user.',
                     );
                   }
                 },

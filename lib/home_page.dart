@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_service.dart';
@@ -33,7 +34,7 @@ class HomePage extends StatelessWidget {
                 showFavorites = !showFavorites;
               }),
             ),
-            // Added: sign out and return to the login page.
+            // Sign out and return to the login page.
             IconButton(
               icon: Icon(Icons.logout, color: Colors.white),
               onPressed: () async {
@@ -95,6 +96,10 @@ class HomePage extends StatelessWidget {
                 var item = docs[index];
                 final isFavorite = _isFavorite(item);
 
+                // CLOUDINARY: read the whole document as a Map, then grab image_url
+                final data = item.data() as Map<String, dynamic>;
+                final imageUrl = data['image_url'];
+
                 return Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -106,15 +111,27 @@ class HomePage extends StatelessWidget {
                       horizontal: 16,
                       vertical: 8,
                     ),
+                    // CLOUDINARY: show the uploaded image (if the item has one)
+                    leading: imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              imageUrl,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : null,
                     title: Text(
-                      item['name'],
+                      data['name'] ?? '',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      "Quantity: ${item['quantity']}",
+                      "Quantity: ${data['quantity'] ?? 0}",
                       style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                     trailing: Row(
@@ -171,6 +188,11 @@ class HomePage extends StatelessWidget {
                 Navigator.pop(context);
               },
             ),
+            // CLOUDINARY deck addition: cancel button
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
           ],
         );
       },
@@ -181,62 +203,122 @@ class HomePage extends StatelessWidget {
     nameCtrl.clear();
     qtyCtrl.clear();
 
+    // CLOUDINARY: hold the picked image file and its uploaded URL
+    File? selectedImageFile;
+    String? selectedImageUrl;
+    bool isUploading = false;
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add Item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: const Text('Add Item'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: qtyCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Quantity',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (selectedImageFile != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    selectedImageFile!,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                icon: isUploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file),
+                label: Text(isUploading ? 'Uploading...' : 'Upload Image'),
+                onPressed: isUploading
+                    ? null
+                    : () async {
+                        setState(() => isUploading = true);
+                        try {
+                          // picks from gallery + uploads to Cloudinary
+                          final picked = await service.pickImageForAddItem();
+                          if (picked != null) {
+                            setState(() {
+                              selectedImageFile = picked.file;
+                              selectedImageUrl = picked.url;
+                            });
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Upload failed: $e')),
+                            );
+                          }
+                        } finally {
+                          setState(() => isUploading = false);
+                        }
+                      },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(dialogContext),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: qtyCtrl,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Quantity',
-                border: OutlineInputBorder(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
+              onPressed: isUploading
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      final quantity = int.tryParse(qtyCtrl.text.trim());
+                      if (name.isNotEmpty && quantity != null && quantity > 0) {
+                        // CLOUDINARY: save the image URL along with the item
+                        await service.addItemWithImage(
+                          name,
+                          quantity,
+                          selectedImageUrl,
+                        );
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      }
+                    },
+              child: const Text('Add'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Add'),
-            onPressed: () {
-              final name = nameCtrl.text.trim();
-              final quantity = int.tryParse(qtyCtrl.text.trim());
-              if (name.isNotEmpty && quantity != null && quantity > 0) {
-                service.addItem(name, quantity);
-                Navigator.pop(context);
-              }
-            },
-          ),
-        ],
       ),
     );
   }
 
+  // Edit UI is unchanged (image is not editable here).
   void openEditDialog(BuildContext context, DocumentSnapshot item) {
     nameCtrl.text = item['name'];
     qtyCtrl.text = item['quantity'].toString();

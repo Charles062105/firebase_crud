@@ -42,13 +42,13 @@ class AuthService {
   Future<User?> signInWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
       return userCredential.user;
     } catch (error) {
       debugPrint('Error: $error');
-      return null;
+      rethrow;
     }
   }
 
